@@ -1,6 +1,9 @@
 package com.example.btserviceapp;
 
 import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -12,30 +15,42 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
+import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 
 import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
+
+import static android.R.attr.id;
 
 
 public class MyService extends Service {
     static MyService instance;
 
+    public static String nameInput = "";
+
     BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
     MyReceiver myReceiver;
-    private Thread thread;
-    private Boolean isRunning = false;
     public Boolean isTorchOn = false;
+    private static final int START_FOREGROUND_ID = 30000;
 
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public void onCreate() {
+        super.onCreate();
         instance = this;
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForeground(START_FOREGROUND_ID, buildNotification(this, "BLE_SCANNER", null));
+        }
         IntentFilter filter = new IntentFilter();
 
         filter.addAction(BluetoothDevice.ACTION_FOUND);
@@ -43,34 +58,25 @@ public class MyService extends Service {
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
 
         myReceiver = new MyReceiver();
-        isRunning = true;
+        registerReceiver(myReceiver, filter);
 
-        thread = new Thread(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        while (isRunning) {
+        new Timer().scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                adapter.startDiscovery();
+            }
+        },0, 5000 );
+    }
 
-                                registerReceiver(myReceiver, filter);
-                                adapter.startDiscovery();
-
-                            try {
-                                Thread.sleep(10000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-        );
-        thread.start();
-//        return super.onStartCommand(intent, flags, startId);
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
         return START_STICKY;
     }
 
     @Override
     public void onTaskRemoved(Intent rootIntent){
-        Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
+        Log.d("ptt", "onTaskRemoved ");
+        Intent restartServiceIntent = new Intent(getApplicationContext(), MyService.class);
         restartServiceIntent.setPackage(getPackageName());
 
         PendingIntent restartServicePendingIntent = PendingIntent.getService(getApplicationContext(), 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT);
@@ -83,6 +89,11 @@ public class MyService extends Service {
         super.onTaskRemoved(rootIntent);
     }
 
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        Log.d("ptt", "onTrimMemory ");
+    }
 
     @Nullable
     @Override
@@ -92,10 +103,9 @@ public class MyService extends Service {
 
     @Override
     public void onDestroy() {
+        super.onDestroy();
         Log.d("ptt", "onDestroy ");
         stopSelf();
-        thread.interrupt();
-        isRunning = false;
         unregisterReceiver(myReceiver);
         sendBroadcast(new Intent());
     }
@@ -129,6 +139,25 @@ public class MyService extends Service {
         }else {
             return false;
         }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public static Notification buildNotification(Context context, String channelName, String title) {
+
+        String channelId = String.valueOf(id);
+        NotificationChannel chan = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_NONE);
+        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        assert manager != null;
+        manager.createNotificationChannel(chan);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(context, channelId);
+        return notificationBuilder.setOngoing(true)
+                .setSmallIcon(R.drawable.ic_launcher_background)
+                .setContentTitle(title == null ? "App is running in background" : title)
+                .setPriority(NotificationManager.IMPORTANCE_MIN)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .build();
     }
 }
 

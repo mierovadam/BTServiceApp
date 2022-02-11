@@ -27,7 +27,7 @@ public class MyReceiver extends BroadcastReceiver {
             BluetoothDevice device = (BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             if(device.getName() != null) {
                 Log.d("ptt", "Found device " + device.getName());
-                if(device.getName().equals(MainActivity.instance.chosenDeviceName) && !MyService.instance.isTorchOn) {
+                if(device.getName().equals(MyService.nameInput) && !MyService.instance.isTorchOn) {
                     MyService.instance.setTorchMode(true);
                     Toast.makeText(context, "Found device " + device.getName(), Toast.LENGTH_SHORT).show();
                 }

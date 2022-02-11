@@ -9,10 +9,12 @@ import android.content.pm.PackageManager;
 import android.graphics.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -22,7 +24,6 @@ import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
 
-    static MainActivity instance;
     PermissionManager permissionManager;
 
     private TextView txtView_Instruction;
@@ -30,13 +31,13 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnStart;
     private MaterialButton btnStop;
 
-    public String chosenDeviceName;
+    private Context context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        instance = this;
+        context = this;
 
         permissionManager = new PermissionManager(this, MainActivity.this);
         permissionManager.getPermissions();
@@ -45,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        //stopService(mServiceIntent);
         Intent broadcastIntent = new Intent();
         broadcastIntent.setAction("restartservice");
         broadcastIntent.setClass(this, MyReceiver.class);
@@ -67,9 +67,16 @@ public class MainActivity extends AppCompatActivity {
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                chosenDeviceName = txtInput_BtName.getText().toString();
-                startService( new Intent(instance, MyService.class));
-
+                if(txtInput_BtName.getText()!=null){
+                    MyService.nameInput = txtInput_BtName.getText().toString();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService( new Intent(context, MyService.class));
+                    } else {
+                        startService( new Intent(context, MyService.class));
+                    }
+                }else{
+                    Toast.makeText(context, "Please Enter Ble Device Name",Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -77,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 MyService.instance.setTorchMode(false);
-                stopService(new Intent(instance, MyService.class));
+                stopService(new Intent(context, MyService.class));
             }
         });
     }

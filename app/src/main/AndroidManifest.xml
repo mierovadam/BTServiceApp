@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.FLASHLIGHT"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <uses-feature
         android:name="android.hardware.bluetooth_le"
@@ -23,14 +24,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BTServiceApp">
-        <service android:name=".MyService"></service>
-        <receiver android:name=".MyReceiver">
+        <service android:name=".MyService"
+            android:exported="true"/>
+        <receiver android:name=".MyReceiver"
+            android:exported="true">
             <intent-filter>
                 <action android:name="BluetoothDevice.ACTION_FOUND">
                 </action></intent-filter>
         </receiver>
 
-        <activity android:name=".MainActivity">
+        <activity android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
